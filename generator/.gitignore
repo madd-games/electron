@@ -1,0 +1,6 @@
+test.*
+timestamps.ini
+*.s
+*.o
+obj
+bin
