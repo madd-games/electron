@@ -38,6 +38,8 @@ import elec.rt.IllegalArgumentError;
 import elec.util.Iterator;
 
 import edk.gen.Field;
+import edk.gen.Method;
+import edk.gen.MacroInstruction;
 
 /**
  * In-memory representation of an EIR file.
@@ -77,6 +79,11 @@ public class EIR
 	 */
 	private ArrayList<Field> fields = new ArrayList<Field>();
 	
+	/**
+	 * Methods implemented by the class.
+	 */
+	private ArrayList<Method> methods = new ArrayList<Method>();
+	
 	public EIR(String filename)
 	{
 		this.filename = filename;
@@ -87,6 +94,62 @@ public class EIR
 	{
 		System.stderr.writeLine(filename + ":" + new String(lineno) + ":error: " + msg);
 		System.exit(1);
+	};
+	
+	private int parseMethod(Method method, int lineno)
+	{
+		String line;
+
+		while (!infile.eof())
+		{
+			lineno++;
+			
+			try
+			{
+				line = infile.readLine();
+			}
+			catch (IOError e)
+			{
+				break;
+			};
+			
+			if (line == "")
+			{
+				continue;
+			};
+			
+			if (line.startsWith("#"))
+			{
+				continue;
+			};
+			
+			StringSplitter splitter = new StringSplitter(line, " ");
+			ArrayList<String> tokens = new ArrayList<String>(splitter);
+			
+			if (tokens.size() == 1)
+			{
+				if (tokens[0] == ".end")
+				{
+					break;
+				};
+			};
+			
+			if (tokens.size() == 0)
+			{
+				continue;
+			};
+			
+			try
+			{
+				method.add(new MacroInstruction(tokens));
+			}
+			catch (IllegalArgumentError e)
+			{
+				fail(lineno, e.getMessage());
+			};
+		};
+		
+		return lineno;
 	};
 	
 	private int parseLayout(int lineno)
@@ -147,35 +210,50 @@ public class EIR
 			};
 			
 			int type;
-			if (tokens[1] == "int")
+			try
 			{
-				type = Field.INT;
+				type = getTypeByName(tokens[1]);
 			}
-			else if (tokens[1] == "uint")
+			catch (IllegalArgumentError e)
 			{
-				type = Field.UINT;
-			}
-			else if (tokens[1] == "float")
-			{
-				type = Field.FLOAT;
-			}
-			else if (tokens[1] == "man")
-			{
-				type = Field.MAN;
-			}
-			else if (tokens[1] == "method")
-			{
-				type = Field.METHOD;
-			}
-			else
-			{
-				fail(lineno, "unknown type name '" + tokens[1] + "'");
+				fail(lineno, e.getMessage());
 			};
 			
 			fields.add(new Field(global, type, tokens[2]));
 		};
 		
 		return lineno;
+	};
+	
+	public static int getTypeByName(String typename)
+	{
+		int type;
+		if (typename == "int")
+		{
+			type = Field.INT;
+		}
+		else if (typename == "uint")
+		{
+			type = Field.UINT;
+		}
+		else if (typename == "float")
+		{
+			type = Field.FLOAT;
+		}
+		else if (typename == "man")
+		{
+			type = Field.MAN;
+		}
+		else if (typename == "method")
+		{
+			type = Field.METHOD;
+		}
+		else
+		{
+			throw new IllegalArgumentError("unknown type name '" + typename + "'");
+		};
+		
+		return type;
 	};
 	
 	public void parse()
@@ -268,6 +346,50 @@ public class EIR
 			{
 				lineno = parseLayout(lineno);
 			}
+			else if (tokens[0] == ".method")
+			{
+				String symbol;
+				String retTypeName;
+				
+				try
+				{
+					symbol = tokens[1];
+					retTypeName = tokens[2];
+				}
+				catch (BoundError e)
+				{
+					fail(lineno, "the '.method' directive expects parameters");
+				};
+				
+				int returnType;
+				try
+				{
+					returnType = getTypeByName(retTypeName);
+				}
+				catch (IllegalArgumentError e)
+				{
+					fail(lineno, e.getMessage());
+				};
+				
+				ArrayList<Integer> argTypes = new ArrayList<Integer>();
+				
+				int i;
+				for (i=3; i<tokens.size(); i++)
+				{
+					try
+					{
+						argTypes.add(new Integer(getTypeByName(tokens[i])));
+					}
+					catch (IllegalArgumentError e)
+					{
+						fail(lineno, e.getMessage());
+					};
+				};
+				
+				Method method = new Method(symbol, returnType, argTypes);
+				lineno = parseMethod(method, lineno);
+				methods.add(method);
+			}
 			else
 			{
 				fail(lineno, "unknown directive '" + tokens[0] + "'");
@@ -315,5 +437,10 @@ public class EIR
 	public ArrayList<Field> getFields()
 	{
 		return fields;
+	};
+	
+	public ArrayList<Method> getMethods()
+	{
+		return methods;
 	};
 };
