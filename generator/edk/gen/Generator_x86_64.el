@@ -132,6 +132,29 @@ public class Generator_x86_64 extends Generator
 		out.writeLine("\tmovq %rax, -" + new String(8*(regno+1)) + "(%rbp)");
 	};
 	
+	private void generateLink(String symClass, String symOffset, String symValue, ITextOutputStream out)
+	{
+		out.writeLine("\tmovq %r15, %rdx");
+		
+		if (targetPIC)
+		{
+			out.writeLine("\tmovq " + symClass + "@GOTPCREL(%rip), %rsi");
+			out.writeLine("\tcall _Elec_GetData@PLT");
+			out.writeLine("\tmovq " + symOffset + "@GOTPCREL(%rip), %r8");
+			out.writeLine("\taddq (%r8), %rax");
+			out.writeLine("\tleaq " + symValue + "(%rip), %r8");
+			out.writeLine("\tmovq %r8, (%rax)");
+		}
+		else
+		{
+			out.writeLine("\tleaq " + symClass + "(%rip), %rsi");
+			out.writeLine("\tcall _Elec_GetData");
+			out.writeLine("\taddq " + symOffset + ", %rax");
+			out.writeLine("\tleaq " + symValue + "(%rip), %r8");
+			out.writeLine("\tmovq %r8, (%rax)");
+		};
+	};
+	
 	private void generateMethod(Method method, ITextOutputStream out)
 	{
 		/**
@@ -139,7 +162,11 @@ public class Generator_x86_64 extends Generator
 		 */
 		ArrayList<Integer> regTypes = new ArrayList<Integer>(method.getArgTypes().iterate());
 		
-		out.writeLine(".globl " + method.getSymbol());
+		if (method.getSymbol() != "_init")
+		{
+			out.writeLine(".globl " + method.getSymbol());
+		};
+		
 		out.writeLine(method.getSymbol() + ":");
 		
 		/**
@@ -332,6 +359,30 @@ public class Generator_x86_64 extends Generator
 				out.writeLine("\tjmp " + retSymbol);
 				out.writeLine("");
 			}
+			else if (inst.getMacro() == "eir_link")
+			{
+				if (ops.size() != 3)
+				{
+					System.stderr.writeLine("x86_64: 'eir_link' expects 3 name operands");
+					System.exit(1);
+				};
+				
+				Operand opClass = ops[0];
+				Operand opOffset = ops[1];
+				Operand opSymbol = ops[2];
+				
+				if ((opClass.getType() != Operand.NAME) || (opOffset.getType() != Operand.NAME)
+					|| (opSymbol.getType() != Operand.NAME))
+				{
+					System.stderr.writeLine("x86_64: 'eir_link' expects 3 name operands");
+					System.exit(1);
+				};
+				
+				out.writeLine("\t// eir_link @" + opClass.getName() + ", @" + opOffset.getName()
+						+ ", @" + opSymbol.getName());
+				generateLink(opClass.getName(), opOffset.getName(), opSymbol.getName(), out);
+				out.writeLine("");
+			}
 			else
 			{
 				System.stderr.writeLine("x86_64: unrecognised macro: '" + inst.getMacro() + "'");
@@ -406,9 +457,5 @@ public class Generator_x86_64 extends Generator
 		
 		// Compile the methods.
 		generateMethods(eir, out);
-		
-		// Init method.
-		out.writeLine("_init:");
-		out.writeLine("\tret");
 	};
 };
