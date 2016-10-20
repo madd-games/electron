@@ -32,6 +32,8 @@ import elec.util.TableMap;
 import elec.util.IList;
 import elec.util.Iterator;
 import elec.util.ArrayList;
+import elec.util.KeyValuePair;
+import elec.io.ITextOutputStream;
 
 import edk.parse.Grammar;
 import edk.parse.Rule;
@@ -71,6 +73,44 @@ public class Node
 		throw new ParseError(filename + ":" + new String(lineno) + ":" + new String(column) + ": error: " + msg);
 	};
 	
+	private static int matchTermList(Node node, Grammar grammar, IList<Term> terms, IList<Token> tokens, int index)
+	{
+		Iterator<Term> it;
+		for (it=terms.iterate(); !it.end(); it.next())
+		{
+			if (index == tokens.size())
+			{
+				throwParseError(tokens[index-1].filename, tokens[index-1].lineno, tokens[index-1].column,
+						"unexpected end of file");
+			};
+			
+			Term term = it.get();
+			
+			if (term.type == Term.FIXED)
+			{
+				if (tokens[index].value != term.value)
+				{
+					throwParseError(tokens[index].filename, tokens[index].lineno, tokens[index].column,
+							"expected '" + term.value + ", have '" + tokens[index].value + "'");
+				};
+				
+				index++;
+			}
+			else
+			{
+				Node subNode = new Node();
+				if (term.name != "")
+				{
+					node.branches[term.name] = subNode;
+				};
+				
+				index = match(subNode, grammar, term.value, tokens, index);
+			};
+		};
+		
+		return index;
+	};
+	
 	private static int match(Node node, Grammar grammar, String symbolName, IList<Token> tokens, int index)
 	{
 		if (tokens.size() == index)
@@ -100,10 +140,32 @@ public class Node
 		else
 		{
 			Iterator< ArrayList<Term> > it;
-			for (it=grammar.rules[symbolName].iter(); !it.end(); it.next())
+			for (it=grammar.rules[symbolName].formats.iterate(); !it.end(); it.next())
 			{
+				ArrayList<Term> termList = it.get();
 				
+				try
+				{
+					node.branches = new TableMap<String, Node>();
+					int newIndex = matchTermList(node, grammar, termList, tokens, index);
+					
+					node.filename = tokens[index].filename;
+					node.lineno = tokens[index].lineno;
+					node.column = tokens[index].column;
+					
+					node.type = symbolName;
+					node.value = "";
+					
+					return newIndex;
+				}
+				catch (ParseError e)
+				{
+					continue;
+				};
 			};
+			
+			throwParseError(tokens[index].filename, tokens[index].lineno, tokens[index].column,
+					"expected " + symbolName + ", have " + tokens[index].value);
 		};
 	};
 	
@@ -115,5 +177,33 @@ public class Node
 		Node node = new Node();
 		match(node, grammar, root, tokens, 0);
 		return node;
+	};
+	
+	/**
+	 * Write the XML form of this node (and its children) to the specified output stream.
+	 */
+	public void xmlDump(ITextOutputStream out)
+	{
+		xmlDump("", out, "root");
+	};
+	
+	public void xmlDump(String indent, ITextOutputStream out, String tag)
+	{
+		if (value != "")
+		{
+			out.writeLine(indent + "<" + tag + " type=\"" + type + "\">" + value + "</" + tag + ">");
+		}
+		else
+		{
+			out.writeLine(indent + "<" + tag + " type=\"" + type + "\">");
+			
+			Iterator< KeyValuePair<String, Node> > it;
+			for (it=branches.iterate(); !it.end(); it.next())
+			{
+				it.get().value.xmlDump(indent+"\t", out, it.get().key);
+			};
+			
+			out.writeLine(indent + "</" + tag + ">");
+		};
 	};
 };

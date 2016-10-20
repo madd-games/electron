@@ -114,7 +114,7 @@ public class Rule
 						throw new IllegalArgumentError("invalid named term");
 					};
 					
-					terms.add(new Term(Term.SYMBOL, type, scanner.get().substring(scanner.get().size()-1)));
+					terms.add(new Term(Term.SYMBOL, type, scanner.get().substring(0, scanner.get().size()-1)));
 				};
 			}
 			else if (scanner.get().startsWith("'") && scanner.get().endsWith("'"))

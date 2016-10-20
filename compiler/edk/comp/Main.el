@@ -30,10 +30,12 @@ package edk.comp;
 
 import elec.rt.System;
 import elec.util.ArrayList;
+import elec.io.TextFileOutput;
 
 import edk.parse.Grammar;
 import edk.parse.Node;
 import edk.parse.Token;
+import edk.parse.Node;
 
 public class Main
 {
@@ -41,7 +43,7 @@ public class Main
 @number
 @operator
 
-<sum> ::= <number> '+' <sum> | <number>
+<sum> ::= <number a> '+' <sum next> | <number a>
 
 		";
 		
@@ -54,6 +56,9 @@ public class Main
 		tokens.add(new Token("meme", 1, 1, "operator", "+"));
 		tokens.add(new Token("meme", 1, 1, "number", "2"));
 		
-		
+		Node tree = Node.parse(grammar, "sum", tokens);
+		TextFileOutput out = new TextFileOutput("test.xml");
+		tree.xmlDump(out);
+		out.close();
 	};
 };

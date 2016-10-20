@@ -36,7 +36,7 @@ public class Token
 	/**
 	 * The name of the file, and location within it, where this token comes from.
 	 */
-	public String sourceFile;
+	public String filename;
 	public int lineno;
 	public int column;
 	
@@ -46,9 +46,9 @@ public class Token
 	public String type;
 	public String value;
 	
-	public Token(String sourceFile, int lineno, int column, String type, String value)
+	public Token(String filename, int lineno, int column, String type, String value)
 	{
-		this.sourceFile = sourceFile;
+		this.filename = filename;
 		this.lineno = lineno;
 		this.column = column;
 		this.type = type;
