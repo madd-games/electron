@@ -87,7 +87,7 @@ public class Rule
 			{
 				if (terms.size() == 0)
 				{
-					throw new IllegalArgumentError("empty term list");
+					throw new IllegalArgumentError("empty term list in definition of " + nameSpec);
 				};
 				
 				formats.add(terms);
@@ -129,7 +129,7 @@ public class Rule
 		
 		if (terms.size() == 0)
 		{
-			throw new IllegalArgumentError("empty term list");
+			throw new IllegalArgumentError("empty term list in definition of " + nameSpec);
 		};
 		
 		formats.add(terms);

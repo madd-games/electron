@@ -34,6 +34,7 @@ import elec.util.Iterator;
 import elec.util.ArrayList;
 import elec.util.KeyValuePair;
 import elec.io.ITextOutputStream;
+import elec.util.KeyError;
 
 import edk.parse.Grammar;
 import edk.parse.Rule;
@@ -140,7 +141,18 @@ public class Node
 		else
 		{
 			Iterator< ArrayList<Term> > it;
-			for (it=grammar.rules[symbolName].formats.iterate(); !it.end(); it.next())
+			Rule rule;
+			
+			try
+			{
+				rule = grammar.rules[symbolName];
+			}
+			catch (KeyError e)
+			{
+				throw new ParseError("undefined rule: " + symbolName);
+			};
+			
+			for (it=rule.formats.iterate(); !it.end(); it.next())
 			{
 				ArrayList<Term> termList = it.get();
 				
